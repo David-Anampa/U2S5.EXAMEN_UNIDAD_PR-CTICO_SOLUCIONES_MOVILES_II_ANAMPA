@@ -1,5 +1,8 @@
+import '../../../core/logging/registro_app.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import '../../../core/network/diagnostico_red.dart';
 import '../domain/usuario_borrador.dart';
 import '../domain/catalogos_profesionales.dart';
@@ -90,6 +93,34 @@ class UsuarioAdministrativo {
 
   /// Traduce el código del rol a su etiqueta visible sin asignar un rol por defecto.
   String get rolVisible => roles[rol] ?? 'Rol sin definir';
+
+  /// Convierte la entidad a la petición JSON de actualización (HU-020).
+  ///
+  /// Cumple con la minimización del ítem 2: omite campos de auditoría,
+  /// estado, correo y nombres descriptivos que el servidor no espera en el perfil.
+  Map<String, dynamic> toPeticion({double? latitud, double? longitud}) {
+    final mapa = UsuarioBorrador(
+      nombres: nombres,
+      apellidos: apellidos,
+      nombreUsuario: usuario,
+      cargo: cargo,
+      rol: rol,
+      areas: areas,
+      puedeGestionarKits: puedeGestionarKits,
+      colegioCodigo: colegioCodigo,
+      numeroColegiatura: numeroColegiatura,
+      especialidadCodigo: especialidadCodigo,
+    ).toJson();
+
+    // Si la petición lleva coordenadas, viajan con tres decimales como máximo.
+    if (latitud != null) {
+      mapa['latitud'] = double.parse(latitud.toStringAsFixed(3));
+    }
+    if (longitud != null) {
+      mapa['longitud'] = double.parse(longitud.toStringAsFixed(3));
+    }
+    return mapa;
+  }
 
   /// Convierte la fila devuelta por Supabase, admitiendo campos nuevos aún ausentes.
   /// Las fechas se interpretan sin inventar una fecha cuando el campo está vacío.
@@ -329,13 +360,15 @@ class UsuariosRepository {
     required String contrasena,
   }) async {
     await _verificarContratoProfesional();
+    final cuerpo = {
+      'email': correo.trim().toLowerCase(),
+      'password': contrasena,
+      'perfil': datos.toJson(),
+    };
+    _registrarPeticion('crear-usuario', {...cuerpo, 'password': '***'});
     final respuesta = await _client.functions.invoke(
       'crear-usuario',
-      body: {
-        'email': correo.trim().toLowerCase(),
-        'password': contrasena,
-        'perfil': datos.toJson(),
-      },
+      body: cuerpo,
     );
     if (respuesta.status != 200) {
       throw StateError('No se pudo crear el usuario.');
@@ -385,6 +418,12 @@ class UsuariosRepository {
   Future<void> cambiarEstado(String id, {required bool activo}) =>
       _administrar('ESTADO', id, {'activo': activo});
 
+  /// Muestra en la consola (solo en modo debug) el cuerpo exacto enviado al
+  /// backend; sirve para comprobar que viajan únicamente los campos necesarios.
+  void _registrarPeticion(String destino, Map<String, dynamic> cuerpo) {
+    if (kDebugMode) RegistroApp.log('[PETICION] $destino ${jsonEncode(cuerpo)}');
+  }
+
   /// Punto único de llamada a `administrar_usuario_hu020` para no repetir sus parámetros.
   Future<void> _administrar(
     String accion,
@@ -392,12 +431,11 @@ class UsuariosRepository {
     Map<String, dynamic> datos,
   ) => DiagnosticoRed.medir('Usuarios.$accion', () async {
     if (accion == 'EDITAR') await _verificarContratoProfesional();
+    final params = {'p_accion': accion, 'p_id': id, 'p_datos': datos};
+    _registrarPeticion('administrar_usuario_con_kits', params);
     await DiagnosticoRed.medir(
       'Usuarios.actualizarPerfilRPC',
-      () => _client.rpc(
-        'administrar_usuario_con_kits',
-        params: {'p_accion': accion, 'p_id': id, 'p_datos': datos},
-      ),
+      () => _client.rpc('administrar_usuario_con_kits', params: params),
     );
   });
 

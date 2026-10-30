@@ -1,4 +1,6 @@
+import '../../../../core/logging/registro_app.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/network/diagnostico_red.dart';
@@ -111,6 +113,8 @@ class AuthRemoteDataSource {
 
       return userModel;
     } on AuthRetryableFetchException catch (e) {
+      // TEMPORAL (solo debug): causa real del fallo de red, para diagnosticar.
+      if (kDebugMode) RegistroApp.log('[SITRA-DIAG] causa de red: ${e.message}');
       throw AuthException(
         e.message.toLowerCase().contains('timeoutexception')
             ? 'El acceso tardó demasiado. Revisa la conexión del dispositivo y vuelve a intentar.'

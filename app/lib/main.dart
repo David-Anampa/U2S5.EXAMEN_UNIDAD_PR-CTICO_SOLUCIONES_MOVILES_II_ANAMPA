@@ -1,7 +1,9 @@
+import 'core/logging/registro_app.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/config/supabase_config.dart';
@@ -17,6 +19,8 @@ import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/domain/entities/user_entity.dart';
 import 'features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import 'features/privacidad/data/consentimiento_repository.dart';
+import 'features/privacidad/presentation/consentimiento_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,12 +32,12 @@ void main() async {
         url: SupabaseConfig.cleanUrl,
         anonKey: SupabaseConfig.supabaseAnonKey,
       );
-      debugPrint(' Supabase inicializado exitosamente (BD & Auth activos).');
+      RegistroApp.log(' Supabase inicializado exitosamente (BD & Auth activos).');
     } catch (e) {
-      debugPrint(' Error al inicializar Supabase: $e');
+      RegistroApp.log(' Error al inicializar Supabase: $e');
     }
   } else {
-    debugPrint(' Credenciales de Supabase pendientes en lib/core/config/supabase_config.dart');
+    RegistroApp.log(' Credenciales de Supabase pendientes en lib/core/config/supabase_config.dart');
   }
 
   // 2. Inicialización de Notificaciones Push (Firebase FCM diferido para fases posteriores)
@@ -41,13 +45,13 @@ void main() async {
   if (NotificationService.enablePushNotifications) {
     try {
       await Firebase.initializeApp();
-      debugPrint(' Firebase inicializado exitosamente (exclusivo para notificaciones FCM).');
+      RegistroApp.log(' Firebase inicializado exitosamente (exclusivo para notificaciones FCM).');
       await NotificationService.instance.initialize();
     } catch (e) {
-      debugPrint('ℹ️ Firebase Notifications en pausa o sin archivo de servicios: $e');
+      RegistroApp.log('ℹ️ Firebase Notifications en pausa o sin archivo de servicios: $e');
     }
   } else {
-    debugPrint('ℹ️ Notificaciones Push (Firebase FCM) en pausa temporal. Toda la BD y Auth operan en Supabase.');
+    RegistroApp.log('ℹ️ Notificaciones Push (Firebase FCM) en pausa temporal. Toda la BD y Auth operan en Supabase.');
   }
 
   // 3. Repositorios de Producción (100% Supabase)
@@ -69,12 +73,21 @@ void main() async {
       almacenViewModel.limpiarSesion();
     }
   });
-  final router = createRouter(authViewModel);
+  final consentimientoViewModel = ConsentimientoViewModel(
+    ConsentimientoRepository(
+      AlmacenSharedPreferences(await SharedPreferences.getInstance()),
+    ),
+  );
+  final router = createRouter(
+    authViewModel,
+    consentimiento: consentimientoViewModel,
+  );
 
   runApp(
     SitraLuzApp(
       authViewModel: authViewModel,
       almacenViewModel: almacenViewModel,
+      consentimientoViewModel: consentimientoViewModel,
       router: router,
     ),
   );
@@ -84,12 +97,14 @@ void main() async {
 class SitraLuzApp extends StatelessWidget {
   final AuthViewModel authViewModel;
   final AlmacenViewModel almacenViewModel;
+  final ConsentimientoViewModel? consentimientoViewModel;
   final GoRouter router;
 
   const SitraLuzApp({
     super.key,
     required this.authViewModel,
     required this.almacenViewModel,
+    this.consentimientoViewModel,
     required this.router,
   });
 
@@ -99,6 +114,10 @@ class SitraLuzApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<AuthViewModel>.value(value: authViewModel),
         ChangeNotifierProvider<AlmacenViewModel>.value(value: almacenViewModel),
+        if (consentimientoViewModel != null)
+          ChangeNotifierProvider<ConsentimientoViewModel>.value(
+            value: consentimientoViewModel!,
+          ),
       ],
       child: MaterialApp.router(
         title: 'SITRA-Luz • Clínica La Luz',

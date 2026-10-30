@@ -1,3 +1,4 @@
+import '../logging/registro_app.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
@@ -8,7 +9,7 @@ class DiagnosticoRed {
   static int _secuencia = 0;
 
   static void evento(String operacion, String estado) {
-    if (kDebugMode) debugPrint('[SITRA] $operacion | $estado');
+    if (kDebugMode) RegistroApp.log('[SITRA] $operacion | $estado');
   }
 
   /// Muestra la clase/código del fallo y solo ubicaciones del código de la app.
@@ -36,7 +37,7 @@ class DiagnosticoRed {
             ? 'tiempo_de_espera_agotado'
             : 'fallo_de_operacion',
     };
-    debugPrint(
+    RegistroApp.log(
       '[SITRA] $operacion | ERROR ${error.runtimeType}$seguro $categoria | ${ms}ms',
     );
     for (final linea
@@ -45,7 +46,7 @@ class DiagnosticoRed {
             .split('\n')
             .where((l) => l.contains('package:sitra_luz/'))
             .take(3)) {
-      debugPrint('[SITRA] $linea');
+      RegistroApp.log('[SITRA] $linea');
     }
   }
 

@@ -12,11 +12,14 @@ import '../../features/dashboard_almacen/presentation/views/almacen_dashboard_vi
 import '../../features/dashboard_enfermeria/presentation/views/enfermeria_dashboard_view.dart';
 import '../../features/dashboard_farmacia/presentation/views/farmacia_dashboard_view.dart';
 import '../../features/dashboard_jefatura/presentation/views/jefatura_dashboard_view.dart';
+import '../../features/privacidad/presentation/consentimiento_viewmodel.dart';
+import '../../features/privacidad/presentation/privacidad_view.dart';
 
 class AppRoutes {
   AppRoutes._();
 
   static const String login = '/login';
+  static const String privacidad = '/privacidad';
   static const String admin = '/admin';
   static const String catalogos = '/admin/catalogos';
   static const String usuarios = '/admin/usuarios';
@@ -60,11 +63,21 @@ class AppRoutes {
 }
 
 /// Crea y configura el enrutador GoRouter con protección de rutas y redirección por rol
-GoRouter createRouter(AuthViewModel authViewModel) {
+GoRouter createRouter(
+  AuthViewModel authViewModel, {
+  ConsentimientoViewModel? consentimiento,
+}) {
   return GoRouter(
     initialLocation: AppRoutes.login,
-    refreshListenable: authViewModel,
+    refreshListenable: Listenable.merge([
+      authViewModel,
+      if (consentimiento != null) consentimiento,
+    ]),
     routes: [
+      GoRoute(
+        path: AppRoutes.privacidad,
+        builder: (context, state) => const PrivacidadView(),
+      ),
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginView(),
@@ -107,6 +120,14 @@ GoRouter createRouter(AuthViewModel authViewModel) {
       ),
     ],
     redirect: (BuildContext context, GoRouterState state) {
+      // Primera apertura: el consentimiento va antes que cualquier otra pantalla.
+      final enPrivacidad = state.matchedLocation == AppRoutes.privacidad;
+      if (consentimiento != null && !consentimiento.decidido) {
+        return enPrivacidad ? null : AppRoutes.privacidad;
+      }
+      // «Privacidad» es accesible con o sin sesión.
+      if (enPrivacidad) return null;
+
       final authState = authViewModel.state;
       final currentUser = authViewModel.currentUser;
       final isLoggingIn = state.matchedLocation == AppRoutes.login;

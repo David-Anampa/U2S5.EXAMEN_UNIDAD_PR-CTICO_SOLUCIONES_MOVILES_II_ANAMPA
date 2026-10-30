@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import '../../../../core/logging/registro_app.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/solicitud_id.dart';
 import '../models/lote_model.dart';
@@ -135,7 +135,7 @@ class AlmacenRemoteDataSource {
           .select()
           .single();
 
-      debugPrint(
+      RegistroApp.log(
         '✅ Medicamento registrado exitosamente en Supabase: ${response['nombre_comercial']}',
       );
       return MedicamentoModel.fromMap(response);
@@ -166,7 +166,7 @@ class AlmacenRemoteDataSource {
           .select()
           .single();
 
-      debugPrint(
+      RegistroApp.log(
         '✅ Medicamento actualizado exitosamente en Supabase: ${response['nombre_comercial']}',
       );
       return MedicamentoModel.fromMap(response);

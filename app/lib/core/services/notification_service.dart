@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import '../logging/registro_app.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,9 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  debugPrint('📩 [FCM Background] Mensaje recibido: ${message.messageId}');
-  debugPrint('   Título: ${message.notification?.title}');
-  debugPrint('   Cuerpo: ${message.notification?.body}');
+  RegistroApp.log('📩 [FCM Background] Mensaje recibido: ${message.messageId}');
+  RegistroApp.log('   Título: ${message.notification?.title}');
+  RegistroApp.log('   Cuerpo: ${message.notification?.body}');
 }
 
 /// Servicio centralizado de Notificaciones Push con Firebase Cloud Messaging (FCM).
@@ -34,7 +34,7 @@ class NotificationService {
   /// Inicializa Firebase Cloud Messaging y configura los receptores de eventos
   Future<void> initialize() async {
     if (!enablePushNotifications) {
-      debugPrint('ℹ️ [NotificationService] Firebase FCM pospuesto para una fase posterior. Supabase gestiona BD y Auth.');
+      RegistroApp.log('ℹ️ [NotificationService] Firebase FCM pospuesto para una fase posterior. Supabase gestiona BD y Auth.');
       return;
     }
     if (_initialized) return;
@@ -50,16 +50,16 @@ class NotificationService {
         provisional: false,
       );
 
-      debugPrint('🔔 [FCM] Permisos de notificación: ${settings.authorizationStatus}');
+      RegistroApp.log('🔔 [FCM] Permisos de notificación: ${settings.authorizationStatus}');
 
       // 2. Obtener el token de FCM para este dispositivo
       _fcmToken = await messaging.getToken();
-      debugPrint('🔑 [FCM Token]: $_fcmToken');
+      RegistroApp.log('🔑 [FCM Token] obtenido');
 
       // 3. Suscribirse a cambios o renovaciones del token
       messaging.onTokenRefresh.listen((newToken) {
         _fcmToken = newToken;
-        debugPrint('🔄 [FCM Token Renovado]: $newToken');
+        RegistroApp.log('🔄 [FCM Token] renovado');
         syncTokenWithSupabase(newToken);
       });
 
@@ -68,20 +68,20 @@ class NotificationService {
 
       // 5. Escuchar notificaciones en primer plano (foreground)
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        debugPrint('🔔 [FCM Foreground] Notificación recibida:');
-        debugPrint('   Título: ${message.notification?.title}');
-        debugPrint('   Cuerpo: ${message.notification?.body}');
-        debugPrint('   Data: ${message.data}');
+        RegistroApp.log('🔔 [FCM Foreground] Notificación recibida:');
+        RegistroApp.log('   Título: ${message.notification?.title}');
+        RegistroApp.log('   Cuerpo: ${message.notification?.body}');
+        RegistroApp.log('   Data: ${message.data}');
       });
 
       // 6. Escuchar cuando el usuario toca una notificación
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        debugPrint('👆 [FCM Click] Notificación abierta por el usuario: ${message.data}');
+        RegistroApp.log('👆 [FCM Click] Notificación abierta por el usuario: ${message.data}');
       });
 
       _initialized = true;
     } catch (e) {
-      debugPrint('⚠️ [NotificationService] Error al inicializar FCM: $e');
+      RegistroApp.log('⚠️ [NotificationService] Error al inicializar FCM: $e');
     }
   }
 
@@ -101,10 +101,10 @@ class NotificationService {
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         }).eq('id', currentUserId);
 
-        debugPrint('✅ [NotificationService] FCM token sincronizado con Supabase para usuario: $currentUserId');
+        RegistroApp.log('✅ [NotificationService] FCM token sincronizado con Supabase');
       }
     } catch (e) {
-      debugPrint('⚠️ [NotificationService] No se pudo sincronizar el FCM token con Supabase: $e');
+      RegistroApp.log('⚠️ [NotificationService] No se pudo sincronizar el FCM token con Supabase: $e');
     }
   }
 }

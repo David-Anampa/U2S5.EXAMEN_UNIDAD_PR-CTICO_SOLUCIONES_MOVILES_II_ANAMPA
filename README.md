@@ -1,752 +1,137 @@
-<p align="center">
-  <img src="app/assets/images/Logo_Sitra_Luz_Clinica.png" alt="SITRA-Luz" width="180">
-</p>
+# EXAMEN PRÁCTICO DE LA UNIDAD II
 
-<h1 align="center">SITRA-Luz</h1>
-
-<p align="center">
-  <strong>Sistema de Trazabilidad y Dispensación de Medicamentos</strong><br>
-  Clínica La Luz · Tacna, Perú
-</p>
-
-<p align="center">
-  Aplicación móvil desarrollada con Flutter para digitalizar el flujo interno de medicamentos,
-  controlar inventario por áreas, registrar movimientos y mejorar la trazabilidad entre
-  Almacén, Farmacia y áreas clínicas.
-</p>
+- **CURSO:** SI-988 SOLUCIONES MÓVILES II
+- **AUTOR:** 2022074268 – Anampa Pancca, David Jordan
+- **URL GITHUB:** [https://github.com/David-Anampa/U2S5.EXAMEN_UNIDAD_PR-CTICO_SOLUCIONES_MOVILES_II_ANAMPA.git](https://github.com/David-Anampa/U2S5.EXAMEN_UNIDAD_PR-CTICO_SOLUCIONES_MOVILES_II_ANAMPA.git)
+- **TIPO DE EXAMEN:** 3
+- **DOCENTE:** DR. OSCAR JUAN JIMENEZ FLORES
+- **INSTITUCIÓN:** UNIVERSIDAD PRIVADA DE TACNA
+- **LUGAR Y FECHA:** TACNA — PERÚ, 2026
 
 ---
 
-## Descripción
-
-**SITRA-Luz** es una aplicación móvil orientada a la gestión y trazabilidad interna de medicamentos e insumos médicos en la Clínica La Luz.
-
-El proyecto busca cubrir procesos que normalmente se realizan de forma manual o mediante registros dispersos, especialmente en el flujo interno:
-
-```text
-Proveedor
-   ↓
-Almacén General
-   ↓
-Farmacia Central
-   ↓
-Áreas clínicas / Enfermería
-```
-
-La aplicación centraliza autenticación, roles, catálogo de medicamentos, lotes, stock, transferencias, solicitudes de abastecimiento y trazabilidad, utilizando una arquitectura móvil basada en Flutter y un backend principal en Supabase.
+## Historia de Usuario
+> **Como** usuario de la app SITRA-Luz,  
+> **quiero** decidir qué datos míos se usan y para qué, y tener la seguridad de que la app no envía ni registra más de lo necesario,  
+> **para** proteger mi privacidad y garantizar el cumplimiento de normativas de protección de datos personales.
 
 ---
 
-## Objetivo del proyecto
+## Resumen de Casos Implementados (Tipo de Examen 3)
 
-Digitalizar y controlar el flujo interno de medicamentos e insumos médicos de la clínica, proporcionando:
+### Caso 1: Pantalla de Consentimiento (4 puntos)
+- **Objetivo:** Permitir al usuario aceptar o rechazar por separado cada uso opcional de sus datos.
+- **Implementación:**
+  - Redirección obligatoria en el primer arranque hacia `/privacidad` antes del inicio de sesión mediante `GoRouter`.
+  - Presenta dos interruptores opcionales: **«Analítica de uso»** y **«Envío de promocionales»**, apagados por defecto (`false`).
+  - Botones de acción rápida: **«Aceptar todo»**, **«Rechazar todo»** y **«Confirmar mi elección»**.
+  - Persistencia local con la versión de la política vigente (`"1.0"`) y la fecha/hora actual (`DateTime.now()`).
+  - Acceso directo desde la barra compartida (`SitraAppBar`) y la pantalla de login para revisar o modificar la decisión guardada.
 
-- autenticación segura de usuarios;
-- control de acceso según rol;
-- catálogo centralizado de medicamentos;
-- gestión de lotes y vencimientos;
-- control de stock por área;
-- transferencias entre Almacén y Farmacia;
-- solicitudes de abastecimiento;
-- registro asistido mediante lectura de códigos GTIN/GS1;
-- trazabilidad de movimientos;
-- soporte futuro para notificaciones push;
-- base para módulos de dispensación, auditoría y reportes.
+### Caso 2: Envío de Datos Necesarios al Servidor - Minimización (4 puntos)
+- **Objetivo:** Garantizar que la petición al backend transporte únicamente los campos estrictamente necesarios.
+- **Implementación:**
+  - Seleccionada la petición de administración de usuarios clínicos (`UsuarioBorrador.toJson` y `UsuarioAdministrativo.toPeticion`).
+  - La carga útil excluye datos que el perfil no gestiona (correo de Auth, ID interno del perfil, estado activo por acción separada, fechas de auditoría y nombres descriptivos derivados).
+  - Si la petición incluyera coordenadas opcionales, se redondean y limitan a un máximo de tres decimales.
+  - Registro en depuración del JSON exacto bajo la etiqueta `[PETICION]`.
 
----
+#### Tabla de Minimización de Campos de la Entidad:
+| Campo de la entidad | Se envía | Por qué |
+| :--- | :---: | :--- |
+| **nombres**, **apellidos** | **Sí** | El servidor los guarda en el perfil del usuario. |
+| **usuario** (`nombre_usuario`) | **Sí** | El servidor valida unicidad y lo persiste. |
+| **cargo** | **Sí** | Define la responsabilidad y si aplica gestión de kits. |
+| **rol** | **Sí** | Asigna los permisos en la base de datos de Supabase. |
+| **areas** | **Sí** | Asigna las áreas de trabajo autorizadas para el usuario. |
+| **puedeGestionarKits** | **Sí** | Permiso específico que el servidor valida y almacena. |
+| **colegioCodigo, numeroColegiatura, especialidadCodigo** | **Sí** | Datos profesionales clínicos validados por la RPC. |
+| **id** | **No** (va en `p_id`) | Identifica el registro a editar; no es parte del perfil. |
+| **correo** | **No** | Pertenece a Supabase Auth; no se edita en este perfil. |
+| **activo** | **No** | Se cambia por una acción administrativa independiente (`ESTADO`). |
+| **nombreAnterior** | **No** | Campo histórico de migración; el backend ya no lo usa. |
+| **creado**, **actualizado** | **No** | Fechas de auditoría fijadas automáticamente por el servidor. |
+| **colegioNombre, especialidadNombre** | **No** | Son etiquetas de interfaz; el servidor las deriva del código. |
+| **coordenadas** | **No** | La gestión de usuarios y personal clínico no requiere ubicación GPS. |
 
-## Arquitectura tecnológica
+### Caso 3: Registro de Logs sin Datos Personales (4 puntos)
+- **Objetivo:** Ningún registro emitido por la app permite identificar directa ni indirectamente al usuario.
+- **Implementación:**
+  - Servicio centralizado `RegistroApp` con método estático `enmascarar()`.
+  - Expresiones regulares que enmascaran correos (`***@***`), celulares peruanos de 9 dígitos (`*********`) y números de DNI de 8 dígitos (`********`).
+  - La analítica solo se registra si el usuario aceptó «Analítica de uso» (`RegistroApp.analiticaPermitida`).
+  - Todas las salidas del proyecto reemplazaron `print` y `debugPrint` directos por `RegistroApp.log()`.
+  - Datos de prueba en la acción de guardar consentimiento para comprobación en consola.
 
-El proyecto utiliza una arquitectura basada en **MVVM + Repository**, con separación entre presentación, dominio y acceso a datos.
+### Caso 4: Tres Pruebas Unitarias del Consentimiento (4 puntos)
+- **Objetivo:** Comprobación del consentimiento sin emulador ni red mediante versiones simuladas (`AlmacenSimulado` y `AnaliticaSimulada`).
+- **Pruebas en `test/consentimiento_test.dart`:**
+  - **Prueba (a):** Sin decisión guardada, los dos usos opcionales están apagados (`false`).
+  - **Prueba (b):** Al aceptar solo «Analítica de uso», queda encendida solo esa y se guarda la versión `"1.0"` con fecha.
+  - **Prueba (c):** Tras retirar «Analítica de uso», un evento de la app no llega a la analítica (lista vacía).
+- **Ejecución:** `flutter test test/consentimiento_test.dart` (100% PASS).
 
-```mermaid
-flowchart LR
-    UI[Views / Flutter UI]
-    VM[ViewModels]
-    REP[Repositories]
-    DS[Data Sources]
-    SB[(Supabase)]
-    AUTH[Supabase Auth]
-    FCM[Firebase Cloud Messaging]
-    SCAN[Escáner GTIN]
-
-    UI --> VM
-    VM --> REP
-    REP --> DS
-    DS --> SB
-    DS --> AUTH
-
-    UI --> SCAN
-    UI -. notificaciones futuras .-> FCM
-```
-
-### Flujo principal
-
-```text
-View
-  ↓
-ViewModel
-  ↓
-Repository
-  ↓
-DataSource
-  ↓
-Supabase / servicios externos
-```
-
----
-
-## Stack tecnológico
-
-| Capa | Tecnología |
-|---|---|
-| Aplicación móvil | Flutter / Dart |
-| Gestión de estado | Provider |
-| Navegación | GoRouter |
-| Backend principal | Supabase |
-| Base de datos | PostgreSQL |
-| Autenticación | Supabase Auth |
-| Seguridad de datos | Row Level Security (RLS) |
-| Escaneo GTIN | `mobile_scanner` |
-| Captura de imágenes | `image_picker` |
-| Notificaciones | Firebase Cloud Messaging |
-| CI/CD | GitHub Actions |
-| Control de versiones | Git / GitHub |
-
-> **Importante:** Supabase es el backend principal del sistema. Firebase se reserva exclusivamente para notificaciones push mediante FCM y actualmente se encuentra desactivado mediante una feature flag hasta una fase posterior.
+### Caso 5: Dos Pruebas Unitarias de Enmascarado y de Envío Mínimo (4 puntos)
+- **Objetivo:** Comprobación automatizada con datos fijos de que el log y la petición no llevan datos de más.
+- **Pruebas en `test/enmascarado_minimo_test.dart`:**
+  - **Prueba (a):** El texto `"cliente ana@correo.com cel 987654321 dni 45678912"` sale como `"cliente ***@*** cel ********* dni ********"` y sin los valores originales.
+  - **Prueba (b):** Una entidad de prueba convertida a la petición no contiene los campos excluidos del ítem 2, y sus coordenadas tienen como máximo tres decimales (`-18.012` y `-70.255`).
+- **Ejecución:** `flutter test test/enmascarado_minimo_test.dart` (100% PASS).
 
 ---
 
-## Roles del sistema
+## Archivos del Proyecto Móvil Afectados y Nuevos
 
-SITRA-Luz contempla cinco perfiles principales:
+### Nuevos Componentes y Módulos
+1. `app/lib/core/logging/registro_app.dart`:
+   - Servicio centralizado de enmascaramiento y logging seguro con control de analítica.
+2. `app/lib/features/privacidad/data/consentimiento_repository.dart`:
+   - Repositorio y modelo de persistencia local del consentimiento (versión y fecha).
+   - Abstracción `AlmacenClaveValor` para permitir simulación en pruebas unitarias.
+3. `app/lib/features/privacidad/presentation/consentimiento_viewmodel.dart`:
+   - `ChangeNotifier` que gestiona el estado de privacidad y notifica al enrutador.
+4. `app/lib/features/privacidad/presentation/privacidad_view.dart`:
+   - Vista responsiva de consentimiento con switches, tarjetas explicativas y botones de decisión rápida.
+5. `app/test/consentimiento_test.dart`:
+   - Pruebas unitarias completas del Caso 4 con mocks en memoria.
+6. `app/test/enmascarado_minimo_test.dart`:
+   - Pruebas unitarias completas del Caso 5 para validación de regex y minimización.
+7. `app/test/registro_app_test.dart`:
+   - Pruebas unitarias auxiliares de enmascaramiento con formatos variados.
 
-| Rol | Responsabilidad principal |
-|---|---|
-| Administrador | Administración general, usuarios y configuración |
-| Jefatura de Farmacia | Supervisión, control y reportes |
-| Farmacia | Preparación, despacho y gestión de solicitudes |
-| Almacén | Inventario, lotes, registro y transferencias |
-| Enfermería / Técnico | Solicitud y recepción de medicamentos e insumos |
-
-La aplicación utiliza el rol almacenado en la tabla `profiles` de Supabase para dirigir al usuario al módulo correspondiente.
-
----
-
-## Módulos principales
-
-### Autenticación y control de acceso
-
-El sistema cuenta con autenticación mediante **Supabase Auth** y consulta del perfil del usuario en PostgreSQL.
-
-Actualmente incluye:
-
-- inicio de sesión con correo y contraseña;
-- validación de credenciales;
-- lectura de perfil desde `profiles`;
-- identificación del rol del usuario;
-- redirección mediante GoRouter;
-- cierre de sesión;
-- manejo de errores de conectividad;
-- dashboards independientes para los cinco roles.
-
-### Catálogo de medicamentos
-
-El módulo de Almacén permite trabajar con el catálogo general almacenado en Supabase.
-
-Incluye:
-
-- consulta de medicamentos activos;
-- búsqueda y filtrado;
-- registro de medicamentos;
-- edición de medicamentos existentes;
-- información farmacéutica y de presentación;
-- soporte para código GTIN;
-- integración con lotes e inventario.
-
-### Lotes e inventario
-
-El proyecto incorpora estructuras para administrar:
-
-- medicamentos;
-- lotes;
-- fechas de vencimiento;
-- stock por área;
-- ingresos de mercadería;
-- movimientos de inventario;
-- auditoría de operaciones.
-
-La base de datos se encuentra definida mediante scripts SQL dentro de:
-
-```text
-docs/supabase/
-```
-
-### Transferencias Almacén → Farmacia
-
-El módulo de Almacén permite registrar movimientos de stock desde Almacén General hacia Farmacia Central.
-
-El flujo implementado contempla:
-
-1. validar el stock disponible;
-2. descontar la cantidad del Almacén;
-3. incrementar o crear el stock correspondiente en Farmacia;
-4. registrar el movimiento en auditoría.
-
-> Actualmente el flujo funcional existe, pero la atomicidad completa de la operación debe reforzarse mediante una función/RPC transaccional en PostgreSQL antes de considerarlo cerrado a nivel de producción.
-
-### Solicitudes de abastecimiento
-
-Existe soporte para consultar y atender solicitudes provenientes de Farmacia.
-
-Actualmente se dispone de:
-
-- modelo de solicitud;
-- tabla de solicitudes en Supabase;
-- detalle de ítems;
-- bandeja para Almacén;
-- cambio de estado de solicitudes;
-- registro de auditoría.
-
-La creación completa de solicitudes desde el módulo de Farmacia continúa como parte del desarrollo pendiente.
-
-### Escaneo GTIN
-
-El proyecto incorpora lectura de códigos GTIN/GS1 utilizando la cámara del dispositivo.
-
-Características actuales:
-
-- lectura local del código de barras;
-- funcionamiento sin necesidad de conexión durante el escaneo;
-- captura opcional de imagen de la caja;
-- integración con el flujo de registro de medicamentos;
-- formulario de revisión y corrección.
-
-El procesamiento real mediante Gemini todavía no se encuentra conectado a una API externa. El servicio actual utiliza datos de demostración y lógica simulada para representar el flujo de extracción.
+### Archivos Modificados
+1. `app/lib/core/routes/app_router.dart`:
+   - Ruta `/privacidad` y redirección en el primer arranque si no hay decisión tomada.
+2. `app/lib/main.dart`:
+   - Carga inicial del repositorio de consentimiento y suministro vía `MultiProvider`.
+3. `app/lib/core/widgets/sitra_app_bar.dart`:
+   - Botón directo de acceso a «Privacidad» en la barra de aplicación compartida.
+4. `app/lib/features/administracion/domain/usuario_borrador.dart`:
+   - Conversión minimizada `toJson()` excluyendo campos no requeridos por la RPC.
+5. `app/lib/features/administracion/data/usuarios_repository.dart`:
+   - Método `toPeticion()` en `UsuarioAdministrativo` y registro seguro de peticiones `[PETICION]`.
+6. `app/lib/core/network/diagnostico_red.dart`:
+   - Redirección de logs a `RegistroApp.log()` para evitar filtrado de excepciones con datos sensibles.
+7. `app/lib/core/services/notification_service.dart`:
+   - Enmascaramiento de tokens y cargas útiles de notificaciones push.
+8. `app/lib/features/almacen/data/datasources/almacen_remote_datasource.dart`:
+   - Reemplazo de llamadas a `debugPrint` por `RegistroApp.log()`.
+9. `app/lib/features/auth/data/datasources/auth_remote_datasource.dart`:
+   - Registro enmascarado en flujo de autenticación y diagnóstico de red.
 
 ---
 
-## Supabase
+## Comandos para Ejecución de Pruebas
 
-Supabase concentra la autenticación y persistencia principal del proyecto.
-
-Entre las estructuras utilizadas se encuentran:
-
-```text
-profiles
-medicamentos
-lotes
-inventario_stock
-pedidos_abastecimiento
-pedidos_abastecimiento_items
-dispensaciones
-auditoria_trazabilidad
-```
-
-La configuración y scripts necesarios se encuentran en:
-
-```text
-docs/supabase/
-├── GUIA_SUPABASE.md
-├── crear_usuarios_roles.sql
-└── setup_sitra_luz.sql
-```
-
-### Decisión arquitectónica
-
-La arquitectura original evaluó Firebase y un modelo híbrido, pero posteriormente el proyecto consolidó:
-
-```text
-Supabase PostgreSQL
-        +
-Supabase Auth
-        +
-Firebase FCM únicamente para notificaciones
-```
-
-La decisión está documentada en:
-
-```text
-docs/decisiones/ADR-003-migracion-supabase-fcm.md
-```
-
----
-
-## Firebase Cloud Messaging
-
-Firebase permanece en el proyecto exclusivamente como infraestructura para notificaciones push.
-
-Actualmente:
-
-```dart
-NotificationService.enablePushNotifications = false;
-```
-
-Por lo tanto:
-
-- Firebase no almacena los datos principales;
-- Firebase Auth no es utilizado;
-- Firestore no es utilizado como base de datos principal;
-- FCM será habilitado en una etapa posterior.
-
----
-
-## Estructura principal del proyecto
-
-```text
-SITRA-Luz/
-├── .github/
-│   └── workflows/
-│       ├── ci.yml
-│       └── flutter_ci.yml
-│
-├── app/
-│   ├── android/
-│   ├── assets/
-│   ├── lib/
-│   │   ├── core/
-│   │   │   ├── config/
-│   │   │   ├── routes/
-│   │   │   ├── services/
-│   │   │   ├── theme/
-│   │   │   └── widgets/
-│   │   │
-│   │   ├── features/
-│   │   │   ├── auth/
-│   │   │   ├── almacen/
-│   │   │   ├── dashboard_admin/
-│   │   │   ├── dashboard_almacen/
-│   │   │   ├── dashboard_enfermeria/
-│   │   │   ├── dashboard_farmacia/
-│   │   │   └── dashboard_jefatura/
-│   │   │
-│   │   └── main.dart
-│   │
-│   ├── test/
-│   └── pubspec.yaml
-│
-├── docs/
-│   ├── contexto/
-│   ├── decisiones/
-│   ├── equipo/
-│   ├── producto/
-│   └── supabase/
-│
-├── CONTRIBUTING.md
-├── CONVENTIONS.md
-└── README.md
-```
-
----
-
-## Arquitectura por feature
-
-Las funcionalidades siguen una separación similar a:
-
-```text
-features/
-└── modulo/
-    ├── data/
-    │   ├── datasources/
-    │   ├── models/
-    │   ├── repositories/
-    │   └── services/
-    │
-    ├── domain/
-    │   ├── entities/
-    │   └── repositories/
-    │
-    └── presentation/
-        ├── states/
-        ├── viewmodels/
-        └── views/
-```
-
-Esto permite mantener desacopladas:
-
-- interfaz gráfica;
-- lógica de presentación;
-- reglas de dominio;
-- persistencia;
-- servicios externos.
-
----
-
-## Requisitos
-
-Para ejecutar el proyecto se recomienda contar con:
-
-- Flutter estable;
-- Dart `^3.9.2`;
-- Android Studio;
-- Android SDK;
-- Git;
-- una instancia de Supabase configurada;
-- emulador Android o dispositivo físico.
-
-El proyecto está orientado principalmente a dispositivos móviles.
-
-Requisitos mínimos definidos por el sistema:
-
-- Android 9 / API 28 o superior;
-- iOS 14 o superior.
-
-El desarrollo y las pruebas actuales se concentran principalmente en Android.
-
----
-
-## Instalación
-
-### 1. Clonar el repositorio
+Desde el directorio `app`:
 
 ```bash
-git clone https://github.com/Brunoenr02/SITRA-Luz.git
-cd SITRA-Luz
-```
+# Ejecutar Caso 4: Pruebas unitarias de consentimiento
+flutter test test/consentimiento_test.dart
 
-Si deseas trabajar directamente con la rama de desarrollo actual:
+# Ejecutar Caso 5: Pruebas unitarias de enmascarado y envío mínimo
+flutter test test/enmascarado_minimo_test.dart
 
-```bash
-git switch Sprint-02
-```
-
-### 2. Ingresar al proyecto Flutter
-
-```bash
-cd app
-```
-
-### 3. Instalar dependencias
-
-```bash
-flutter pub get
-```
-
-### 4. Verificar el entorno
-
-```bash
-flutter doctor
-```
-
-Para listar dispositivos disponibles:
-
-```bash
-flutter devices
-```
-
----
-
-## Configuración de Supabase
-
-El proyecto utiliza:
-
-```text
-app/lib/core/config/supabase_config.dart
-```
-
-Debes configurar:
-
-```text
-SUPABASE_URL
-SUPABASE_ANON_KEY
-```
-
-No utilices una `service_role` dentro de la aplicación móvil.
-
-Después, ejecuta el script:
-
-```text
-docs/supabase/setup_sitra_luz.sql
-```
-
-desde el SQL Editor de Supabase.
-
-También puedes consultar:
-
-```text
-docs/supabase/GUIA_SUPABASE.md
-```
-
-para revisar la configuración completa.
-
----
-
-## Ejecutar la aplicación
-
-Con un emulador o dispositivo Android conectado:
-
-```bash
-flutter run
-```
-
-Para seleccionar un dispositivo específico:
-
-```bash
-flutter devices
-flutter run -d <device-id>
-```
-
----
-
-## Ejecutar pruebas
-
-```bash
+# Ejecutar todas las pruebas unitarias del proyecto
 flutter test
 ```
-
----
-
-## Análisis estático
-
-```bash
-flutter analyze
-```
-
----
-
-## Generar APK
-
-```bash
-flutter build apk --release
-```
-
-El APK generado estará disponible normalmente en:
-
-```text
-build/app/outputs/flutter-apk/app-release.apk
-```
-
----
-
-## Integración continua
-
-El repositorio utiliza GitHub Actions.
-
-### Flutter CI
-
-El flujo principal ejecuta:
-
-```text
-flutter pub get
-flutter analyze
-flutter test
-flutter build apk --release
-```
-
-sobre ramas como:
-
-```text
-main
-develop
-Sprint-*
-```
-
-### Calidad y seguridad
-
-El proyecto también incluye verificaciones orientadas a:
-
-- análisis estático;
-- pruebas;
-- cobertura;
-- detección de secretos mediante Trivy.
-
-Los workflows se encuentran en:
-
-```text
-.github/workflows/
-```
-
----
-
-## Seguridad
-
-El proyecto contempla varias medidas de seguridad:
-
-- autenticación mediante Supabase Auth;
-- contraseñas administradas por el proveedor de autenticación;
-- perfiles asociados a `auth.users`;
-- Row Level Security en PostgreSQL;
-- separación de roles;
-- auditoría de operaciones;
-- validación de sesiones;
-- escaneo de secretos mediante CI.
-
-No deben almacenarse en el repositorio:
-
-- contraseñas;
-- claves privadas;
-- `service_role`;
-- tokens personales;
-- secretos de APIs externas.
-
----
-
-## Estado actual
-
-### Implementado
-
-- [x] Proyecto Flutter operativo
-- [x] Arquitectura MVVM / Repository
-- [x] Supabase como backend principal
-- [x] Supabase Auth
-- [x] Tabla de perfiles y roles
-- [x] Cinco roles de usuario
-- [x] Login
-- [x] Navegación con GoRouter
-- [x] Dashboards por rol
-- [x] Tema visual de SITRA-Luz
-- [x] Catálogo de medicamentos
-- [x] Registro de medicamentos
-- [x] Edición de medicamentos
-- [x] Gestión de lotes
-- [x] Inventario de Almacén
-- [x] Transferencia de stock hacia Farmacia
-- [x] Auditoría de movimientos
-- [x] Lectura GTIN mediante cámara
-- [x] Captura opcional de imagen
-- [x] Bandeja de solicitudes para Almacén
-- [x] CI con GitHub Actions
-
-### En desarrollo / mejora
-
-- [ ] Vista consolidada completa de stock Farmacia + Almacén
-- [ ] Transferencia de stock completamente atómica mediante PostgreSQL
-- [ ] Creación de solicitudes desde Farmacia
-- [ ] Protección estricta de todas las rutas por rol
-- [ ] Integración real con Gemini
-- [ ] Validación IA de medicamentos
-- [ ] Activación de Firebase Cloud Messaging
-- [ ] Expiración configurable de sesión
-
-### Próximos módulos
-
-- [ ] Fichas de pedido
-- [ ] Flujo de preparación y dispensación
-- [ ] Confirmación de recojo
-- [ ] Descuento automático de stock
-- [ ] Kits de Neonatología
-- [ ] Gestión completa de usuarios
-- [ ] Trazabilidad histórica
-- [ ] Dashboard de Jefatura
-- [ ] Alertas de stock crítico
-- [ ] Gestión FEFO
-- [ ] Exportación de fichas a PDF
-- [ ] Integración con Google Drive
-
----
-
-## Requerimientos del sistema
-
-La documentación funcional del proyecto contempla requerimientos relacionados con:
-
-- autenticación;
-- control por roles;
-- fichas de pedido;
-- catálogo;
-- inventario;
-- lotes;
-- GTIN;
-- abastecimiento;
-- trazabilidad;
-- usuarios;
-- reportes;
-- PDF;
-- Google Drive;
-- notificaciones.
-
-La especificación completa se encuentra en:
-
-```text
-docs/contexto/requerimientos.md
-```
-
----
-
-## Equipo
-
-**Grupo 04 — Universidad Privada de Tacna**
-
-| Integrante | Rol |
-|---|---|
-| Bruno Ancco Suaña | Scrum Master · Developer |
-| Walter Sala Jimenez | Product Owner · Developer |
-| David Anampa | Developer · QA |
-
-Curso:
-
-```text
-Soluciones Móviles II — SI-988
-```
-
----
-
-## Convenciones de desarrollo
-
-El repositorio cuenta con documentación específica para mantener consistencia durante el desarrollo:
-
-```text
-CONVENTIONS.md
-CONTRIBUTING.md
-```
-
-Se recomienda utilizar Conventional Commits:
-
-```text
-feat:
-fix:
-docs:
-refactor:
-test:
-build:
-ci:
-```
-
-Ejemplo:
-
-```bash
-git commit -m "feat(almacen): implementar registro de lotes"
-```
-
----
-
-## Flujo de trabajo recomendado
-
-```bash
-git pull
-git switch <rama>
-git add .
-git commit -m "tipo(modulo): descripcion"
-git push
-```
-
-Antes de realizar un push:
-
-```bash
-cd app
-flutter pub get
-flutter analyze
-flutter test
-```
-
----
-
-## Visión del proyecto
-
-SITRA-Luz busca convertirse en una solución móvil que permita conocer:
-
-- qué medicamento ingresó;
-- a qué lote pertenece;
-- cuánto stock existe;
-- dónde se encuentra;
-- quién realizó cada movimiento;
-- cuándo ocurrió;
-- hacia qué área fue transferido o dispensado.
-
-El objetivo final es contar con una trazabilidad digital completa del medicamento dentro del flujo interno de la clínica.
-
----
-
-<p align="center">
-  <strong>SITRA-Luz</strong><br>
-  Sistema de Trazabilidad y Dispensación de Medicamentos
-</p>

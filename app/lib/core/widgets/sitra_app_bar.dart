@@ -137,6 +137,15 @@ class SitraAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ...?actions,
         IconButton(
+          tooltip: 'Privacidad',
+          onPressed: () => context.push('/privacidad'),
+          icon: const Icon(
+            Icons.privacy_tip_outlined,
+            color: AppColors.primary,
+            size: 22,
+          ),
+        ),
+        IconButton(
           tooltip: 'Cerrar sesión',
           icon: const Icon(
             Icons.logout_rounded,
